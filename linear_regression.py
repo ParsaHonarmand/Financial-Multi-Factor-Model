@@ -57,13 +57,10 @@ class FactorReg:
     self.factors[factor_name] = factor_returns
 
   def regress_factor(self, regress_factors):
-    model = LinearRegression()
     df = self.factors[[regress_factors]]
-    model.fit(df, self.returns)
-
-    print("Model Coefficients:", model.coef_)
-    # print("Mean Absolute Error:", mean_absolute_error(y_test, y_pred))
-    # print("Coefficient of Determination:", r2_score(y_test, y_pred))
+    model = sm.OLS(self.returns, df)
+    results = model.fit()
+    print(results.summary())
 
   def debug(self):
     print(self.returns.head())
