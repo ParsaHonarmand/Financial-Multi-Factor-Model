@@ -37,6 +37,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     for stock in stocks_df:
       single_stock_df = stocks_df[stock]
 
+      ticker = stock[1] if isinstance(stock, tuple) else stock
       model = sm.OLS(single_stock_df, factors_df)
       results = model.fit()
       print(results.summary())
@@ -45,9 +46,9 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
         factor, pvalue = factor_pval
         if pvalue < SIGNIF_LEVEL:
           if(portfolios.get(str(factor))) is None:
-            portfolios[str(factor)] = set(stock)
+            portfolios[str(factor)] = set([ticker])
           else:
-            portfolios[str(factor)].add(stock)
+            portfolios[str(factor)].add(ticker)
       
     return portfolios
 
