@@ -33,36 +33,45 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     """
     SIGNIF_LEVEL = 0.05
 
+    portfolios = dict()
     for stock in stocks_df:
       single_stock_df = stocks_df[stock]
 
       model = sm.OLS(single_stock_df, factors_df)
       results = model.fit()
       print(results.summary())
-      portfolios = {}
       factor_pvals = zip(results.pvalues.index, results.pvalues.values)
       for factor_pval in factor_pvals:
         factor, pvalue = factor_pval
         if pvalue < SIGNIF_LEVEL:
-          portfolios[str(factor)] = stock
+          if(portfolios.get(str(factor))) is None:
+            portfolios[str(factor)] = set(stock)
+          else:
+            portfolios[str(factor)].add(stock)
       
     return portfolios
 
-kwargs = {'interval':'1mo'}
-stock_returns = add_stocks_from_tickers(['AAPL', 'PLD', 'NFLX'])
-factors = add_factors_from_tickers(['^GSPC', '^DJI'])
+def debug_shape(dfs: list[pd.DataFrame]):
+  for df in dfs:
+    print(df.shape)
 
-portfolios = regress_factors(stock_returns, factors)
-print(portfolios)
-
-
-def add_factor_from_csv(factor_name, factor_names, factors, file):
+def add_factors_from_csv(file) -> pd.DataFrame:
     """Takes a factor name and a CSV file, calculates the returns and returns them as a dataframe
 
     The first two elements should be a date column heading and a "Close" (case sensitive) column heading. The data should be two columns corresponding to dates and closing prices. 
     This method is untested and may need to be modified.
     """
-    factor_close = pd.read_csv(file, index_col=0)[['Close']]
-    factor_returns = get_returns(factor_close)
-    factor_names.append(factor_name)
-    factors[factor_name] = factor_returns
+    factor_close = pd.read_csv(file, index_col=0)[['close']]
+    return get_returns(factor_close)
+
+kwargs = {'interval':'1mo'}
+stock_returns = add_stocks_from_tickers(['AAPL', 'PLD', 'NFLX'])
+factors = add_factors_from_tickers(['^GSPC', '^DJI'])
+
+# sml = add_factors_from_csv('./SML.csv')
+
+debug_shape([stock_returns, factors])
+
+portfolios = regress_factors(stock_returns, factors)
+print(portfolios)
+
