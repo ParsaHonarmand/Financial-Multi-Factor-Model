@@ -96,7 +96,7 @@ def normalizeFactorDates(dates: pd.DataFrame, stock_factors: pd.DataFrame) -> pd
 kwargs = {'interval': '1mo'}
 # factors = add_factors_from_csv('../factorDirectory/')
 
-ticker_list = ['NFLX', 'PLD']
+ticker_list = ['NFLX'] # still need to add support for multiple tickers
 tickers = set()
 for ticker in ticker_list:
     tickers.add(ticker)
@@ -111,7 +111,7 @@ normalizedFactors = normalizeFactorDates(stocks, factors)
 for i in range(0, len(normalizedFactors.columns) - 1):
     if len(normalizedFactors.columns[i]) == 2:
         normalizedFactors = normalizedFactors.drop(normalizedFactors.columns[i], axis=1)
-    #     can't drop more because the stupid changes indexs when we drop stuff
+    #     can't drop more because the stupid changes indexs when we drop stuff - works for 1 ticker
     # normalizedFactors.drop(columns=[str(column)])
 
 # normalizedFactors.drop(columns=['(\'Close\', \'NFLX\')'])
