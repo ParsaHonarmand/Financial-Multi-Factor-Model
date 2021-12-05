@@ -75,16 +75,13 @@ def add_factors_from_csv(directory) -> pd.DataFrame:
     for file in os.listdir(directory):
         filepath = directory + file
         factor_close = pd.read_csv(filepath, index_col=0, parse_dates=['Date'])
-        # factor_close = pd.read_csv(filepath)
+
         factorlist.append(factor_close)
 
     combined_factors: pd.DataFrame = factorlist[0]
-    # combined_factors['Date'] = pd.to_datetime(combined_factors['Date'])
     for i in range(1, len(factorlist)):
         df = factorlist[i]
-        # df['Date'] = pd.to_datetime(df['Date'])
         combined_factors = combined_factors.join(df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
-        # combined_factors = combined_factors.set_index('Date').join(df.set_index('Date'), on='Date')
 
     return combined_factors.apply(lambda factor: get_returns(factor))
 
@@ -94,37 +91,30 @@ def normalizeFactorDates(dates: pd.DataFrame, stock_factors: pd.DataFrame) -> pd
 
 
 kwargs = {'interval': '1mo'}
-# factors = add_factors_from_csv('../factorDirectory/')
 
 ticker_list = ['NFLX'] # still need to add support for multiple tickers
-tickers = set()
-for ticker in ticker_list:
-    tickers.add(ticker)
-
-stocks = add_stocks_from_tickers(tickers)
-# dates = stocks.index.to_frame().reset_index(drop=True)
-# print(dates)
+#temp stock data frame so we can join our factor data with the stock data efficiently. This data frame is not processed.
+tempStock = add_stocks_from_tickers(['NFLX'])
+stocks = add_stocks_from_tickers(['NFLX','AAPL','PLD','MSFT'])
 factors = add_factors_from_csv('factorDirectory/')
 
-# factors.to_csv('someshit.csv')
-normalizedFactors = normalizeFactorDates(stocks, factors)
-for i in range(0, len(normalizedFactors.columns) - 1):
-    if len(normalizedFactors.columns[i]) == 2:
-        normalizedFactors = normalizedFactors.drop(normalizedFactors.columns[i], axis=1)
-    #     can't drop more because the stupid changes indexs when we drop stuff - works for 1 ticker
-    # normalizedFactors.drop(columns=[str(column)])
+normalizedFactors = normalizeFactorDates(tempStock, factors)
 
-# normalizedFactors.drop(columns=['(\'Close\', \'NFLX\')'])
-# print(normalizedFactors.columns)
-# print('------------------------------')
-# print(stocks.columns)
-# normalizedFactors.drop(columns=stocks.columns)
-normalizedFactors.to_csv('bitching.csv')
+# for i in range(0, len(normalizedFactors.columns)):
+#     if len(normalizedFactors.columns[i]) == 2:
+#         normalizedFactors = normalizedFactors.drop(normalizedFactors.columns[i], axis=1)
+
+for column in normalizedFactors.columns: 
+    if column == 'Close':
+        normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
+
+normalizedFactors.to_csv('Normalized3.csv')
 
 # stocks.to_csv('../StockDf.csv')
 # sml = add_factors_from_csv('./SML.csv')
+# stocks.to_csv('out.csv')
+# debug_shape([normalizedFactors,tempStock])
+debug_shape([normalizedFactors, stocks])
 
-# debug_shape([stock_returns, factors])
-
-# portfolios = regress_factors(stock_returns, factors)
-# print(portfolios)
+portfolios = regress_factors(stocks, normalizedFactors)
+print(portfolios)
