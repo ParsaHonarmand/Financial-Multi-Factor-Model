@@ -1,7 +1,10 @@
 import numpy as np
+from pandas.core.algorithms import factorize
+from pandas.core.indexing import IndexSlice
 import yfinance as yf
 import pandas as pd
 import statsmodels.api as sm
+import os
 
 def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
     """ Takes a stock ticker string, calculates the returns, and inserts them into a data frame
@@ -9,9 +12,11 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
     #fetching-data-for-multiple-tickers to see how they work.
     Takes optional period and interval keyword args. Go to https://github.com/ranaroussi/yfinance
     """
-
-    close_prices = yf.download(tickers, period=kwargs.get('period', "5y"), interval=kwargs.get(
-        'interval', "1d"))[['Close']].dropna()
+    # close_prices = yf.download(tickers, period=kwargs.get('period', "10y"), interval=kwargs.get(
+    #     'interval', "1d"))[['Close']].dropna()
+      
+    close_prices = yf.download(tickers, start = "2011-12-01", end = "2021-12-01", interval=kwargs.get(
+      'interval', "1d"))[['Close']].dropna()
       
     return close_prices.apply(lambda ticker: get_returns(ticker))
 
@@ -37,7 +42,6 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     for stock in stocks_df:
       single_stock_df = stocks_df[stock]
 
-      ticker = stock[1] if isinstance(stock, tuple) else stock
       model = sm.OLS(single_stock_df, factors_df)
       results = model.fit()
       print(results.summary())
@@ -46,9 +50,9 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
         factor, pvalue = factor_pval
         if pvalue < SIGNIF_LEVEL:
           if(portfolios.get(str(factor))) is None:
-            portfolios[str(factor)] = set([ticker])
+            portfolios[str(factor)] = set(stock)
           else:
-            portfolios[str(factor)].add(ticker)
+            portfolios[str(factor)].add(stock)
       
     return portfolios
 
@@ -56,23 +60,51 @@ def debug_shape(dfs: list[pd.DataFrame]):
   for df in dfs:
     print(df.shape)
 
-def add_factors_from_csv(file) -> pd.DataFrame:
+def add_factors_from_csv(directory) -> pd.DataFrame:
     """Takes a factor name and a CSV file, calculates the returns and returns them as a dataframe
 
     The first two elements should be a date column heading and a "Close" (case sensitive) column heading. The data should be two columns corresponding to dates and closing prices. 
     This method is untested and may need to be modified.
     """
-    factor_close = pd.read_csv(file, index_col=0)[['close']]
-    return get_returns(factor_close)
+    factorlist:pd.DataFrame = []
+    for file in os.listdir(directory):    
+      filepath = directory + file
+      # factor_close = pd.read_csv(filepath, index_col= 0)
+      factor_close = pd.read_csv(filepath)
+      factorlist.append(factor_close)
+    
+    combined_factors:pd.DataFrame = factorlist[0]
+    combined_factors['Date'] = pd.to_datetime(combined_factors['Date'])
+    for i in range(1, len(factorlist)):
+        df = factorlist[i]
+        print(df.columns)
+        df['Date'] = pd.to_datetime(df['Date'])
+        # combined_factors = combined_factors.join(df, on = 'Date', how = 'left', lsuffix= '_left', rsuffix='_right')
+        combined_factors = combined_factors.set_index('Date').join(df.set_index('Date'), on = 'Date')
+
+    return combined_factors.apply(lambda factor: get_returns(factor))
+
+def normalizeFactorDates(dates: pd.DataFrame, factors :pd.DataFrame) -> pd.DataFrame:
+      return dates.join(factors, on ='Date', how = 'left', lsuffix= '_left', rsuffix='_right')
+
 
 kwargs = {'interval':'1mo'}
-stock_returns = add_stocks_from_tickers(['AAPL', 'PLD', 'NFLX'])
-factors = add_factors_from_tickers(['^GSPC', '^DJI'])
+# factors = add_factors_from_csv('../factorDirectory/')
 
+stocks = add_stocks_from_tickers(['NFLX', 'PLD'])
+# dates = stocks.index.to_frame().reset_index(drop=True)
+# print(dates)
+factors = add_factors_from_csv('../factorDirectory/')
+# factors.to_csv('someshit3.csv')
+normalizedFactors = normalizeFactorDates(stocks, factors)
+
+
+
+# stocks.to_csv('../StockDf.csv')
 # sml = add_factors_from_csv('./SML.csv')
+  
+# debug_shape([stock_returns, factors])
 
-debug_shape([stock_returns, factors])
-
-portfolios = regress_factors(stock_returns, factors)
-print(portfolios)
+# portfolios = regress_factors(stock_returns, factors)
+# print(portfolios)
 
