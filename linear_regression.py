@@ -1,10 +1,11 @@
 import numpy as np
-from pandas.core.algorithms import factorize
-from pandas.core.indexing import IndexSlice
 import yfinance as yf
 import pandas as pd
 import statsmodels.api as sm
 import os
+import bs4 as bs
+import requests
+import random
 
 
 def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
@@ -16,8 +17,10 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
     # close_prices = yf.download(tickers, period=kwargs.get('period', "10y"), interval=kwargs.get(
     #     'interval', "1d"))[['Close']].dropna()
 
-    close_prices = yf.download(tickers, start="2011-12-01", end="2021-12-01", interval=kwargs.get(
+    close_prices = yf.download(tickers, start="2014-12-01", end="2021-12-01", interval=kwargs.get(
         'interval', "1d"))[['Close']].dropna()
+
+    close_prices.to_csv('price_downloads.csv')
 
     return close_prices.apply(lambda ticker: get_returns(ticker))
 
@@ -40,24 +43,46 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     Can pass in self.factor_names to regress on all factors
     """
     SIGNIF_LEVEL = 0.05
+    R2THRESHOLD = 0.65
 
     portfolios = dict()
     for stock in stocks_df:
         single_stock_df = stocks_df[stock]
+        pvals_under_sig = False
+        temp_factor_df: pd.DataFrame = factors_df
+    
+        while(not(pvals_under_sig) and (len(temp_factor_df.columns)>0)):
 
-        model = sm.OLS(single_stock_df, factors_df)
-        results = model.fit()
-        print(results.summary())
-        factor_pvals = zip(results.pvalues.index, results.pvalues.values)
-        for factor_pval in factor_pvals:
-            factor, pvalue = factor_pval
-            if pvalue < SIGNIF_LEVEL:
-                if (portfolios.get(str(factor))) is None:
-                    portfolios[str(factor)] = set(stock)
-                else:
-                    portfolios[str(factor)].add(stock)
+            ticker = stock[1] if isinstance(stock, tuple) else stock
+            model = sm.OLS(single_stock_df, temp_factor_df)
+            results = model.fit()
+            # print(results.summary())
+
+            factor_pvals = zip(results.pvalues.index, results.pvalues.values)
+            all_pvals_under = True
+            for factor_pval in factor_pvals:
+                factor, pvalue = factor_pval
+                if pvalue > SIGNIF_LEVEL:
+                    all_pvals_under = False
+                    temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
+
+            if(all_pvals_under):
+                pvals_under_sig = True
+
+        if(results.rsquared_adj >= R2THRESHOLD):
+            print(results.summary())
+        
+        # for factor_pval in factor_pvals:
+        #     factor, pvalue = factor_pval
+        #     if pvalue < SIGNIF_LEVEL:
+        #         if (portfolios.get(str(factor))) is None:
+        #             portfolios[str(factor)] = set([ticker])
+        #         else:
+        #             portfolios[str(factor)].add(ticker)
 
     return portfolios
+
+
 
 
 def debug_shape(dfs: list[pd.DataFrame]):
@@ -90,31 +115,58 @@ def normalizeFactorDates(dates: pd.DataFrame, stock_factors: pd.DataFrame) -> pd
     return dates.join(stock_factors, on='Date', how='left', lsuffix='_left', rsuffix='_right')
 
 
+# Retrieving a list of all of the stocks in the S&P 500 index and putting them in a list
+def save_sp500_tickers():
+    resp = requests.get('http://en.wikipedia.org/wiki/List_of_S%26P_500_companies')
+    soup = bs.BeautifulSoup(resp.text, 'lxml')
+    table = soup.find('table', {'class': 'wikitable sortable'})
+    tickers = []
+    for row in table.findAll('tr')[1:]:
+        ticker = row.findAll('td')[0].text
+        ticker = ticker.replace('\n', '')
+        tickers.append(ticker)    
+
+    
+    return tickers
+
+def get_n_random_stocks(num):
+
+    randlist = []
+    numStocksToAnalyze =num
+    i = 0
+    while (i < numStocksToAnalyze):
+        r = random.randint(0,499)
+        if r not in randlist:
+            randlist.append(r) 
+            i+=1
+    
+    stock_list = save_sp500_tickers()
+    stocks_to_analyze = []
+    for i in randlist:
+        stocks_to_analyze.append(stock_list[i])
+    
+    return stocks_to_analyze
+    
+
+
 kwargs = {'interval': '1mo'}
 
-ticker_list = ['NFLX'] # still need to add support for multiple tickers
 #temp stock data frame so we can join our factor data with the stock data efficiently. This data frame is not processed.
-tempStock = add_stocks_from_tickers(['NFLX'])
-stocks = add_stocks_from_tickers(['NFLX','AAPL','PLD','MSFT'])
+tempStock = add_stocks_from_tickers(['MSFT'])
+stocks_to_analyze = get_n_random_stocks(25)
+
+stocks = add_stocks_from_tickers(stocks_to_analyze)
 factors = add_factors_from_csv('factorDirectory/')
 
 normalizedFactors = normalizeFactorDates(tempStock, factors)
-
-# for i in range(0, len(normalizedFactors.columns)):
-#     if len(normalizedFactors.columns[i]) == 2:
-#         normalizedFactors = normalizedFactors.drop(normalizedFactors.columns[i], axis=1)
 
 for column in normalizedFactors.columns: 
     if column == 'Close':
         normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
 
-normalizedFactors.to_csv('Normalized3.csv')
-
-# stocks.to_csv('../StockDf.csv')
-# sml = add_factors_from_csv('./SML.csv')
-# stocks.to_csv('out.csv')
 # debug_shape([normalizedFactors,tempStock])
 debug_shape([normalizedFactors, stocks])
 
-portfolios = regress_factors(stocks, normalizedFactors)
-print(portfolios)
+# portfolios = regress_factors(stocks, normalizedFactors)
+# print(portfolios)
+
