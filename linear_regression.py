@@ -6,7 +6,7 @@ import os
 import bs4 as bs
 import requests
 import random
-
+import datetime
 
 def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
     """ Takes a stock ticker string, calculates the returns, and inserts them into a data frame
@@ -17,12 +17,26 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
     # close_prices = yf.download(tickers, period=kwargs.get('period', "10y"), interval=kwargs.get(
     #     'interval', "1d"))[['Close']].dropna()
 
-    close_prices = yf.download(tickers, start="2014-12-01", end="2021-12-01", interval=kwargs.get(
-        'interval', "1d"))[['Close']].dropna()
+    joint_stock_df = pd.DataFrame()
+    date = datetime.datetime(2014,12,3,0,0,0)
+    # close_prices = yf.download(tickers, start="2012-12-03", end="2021-12-01", interval=kwargs.get(
+    #         'interval', "1d"))[['Close']].dropna()
+    for ticker in tickers: 
+        close_prices = yf.download(ticker, start="2014-12-03", end="2021-12-01", interval=kwargs.get(
+            'interval', "1d"))[['Close']].dropna()
+        try:
+            print(close_prices.loc[date])
+            close_prices = close_prices.rename(columns={'Close':f'{ticker}'})
+            if joint_stock_df.empty:
+                joint_stock_df = close_prices
+            else:
+                joint_stock_df =joint_stock_df.join(close_prices,on='Date', how='left', lsuffix='_left', rsuffix='_right')
+        except KeyError:
+            print(f'Could not add {ticker}')
 
-    close_prices.to_csv('price_downloads.csv')
+    joint_stock_df.to_csv('price_downloads.csv')
 
-    return close_prices.apply(lambda ticker: get_returns(ticker))
+    return joint_stock_df.apply(lambda ticker: get_returns(ticker))
 
 
 def get_returns(close_prices: pd.DataFrame) -> pd.DataFrame:
@@ -92,8 +106,8 @@ def debug_shape(dfs: list[pd.DataFrame]):
 
 def add_factors_from_csv(directory) -> pd.DataFrame:
     """Takes a factor name and a CSV file, calculates the returns and returns them as a dataframe
-
-    The first two elements should be a date column heading and a "Close" (case sensitive) column heading. The data should be two columns corresponding to dates and closing prices. 
+    The first two elements should be a date column heading and a "Close" (case sensitive) column heading. 
+    The data should be two columns corresponding to dates and closing prices. 
     This method is untested and may need to be modified.
     """
     factorlist: pd.DataFrame = []
@@ -153,9 +167,10 @@ kwargs = {'interval': '1mo'}
 
 #temp stock data frame so we can join our factor data with the stock data efficiently. This data frame is not processed.
 tempStock = add_stocks_from_tickers(['MSFT'])
-stocks_to_analyze = get_n_random_stocks(25)
+stocks_to_analyze = get_n_random_stocks(45)
 
 stocks = add_stocks_from_tickers(stocks_to_analyze)
+# stocks = add_stocks_from_tickers(['MSFT'])
 factors = add_factors_from_csv('factorDirectory/')
 
 normalizedFactors = normalizeFactorDates(tempStock, factors)
@@ -167,6 +182,6 @@ for column in normalizedFactors.columns:
 # debug_shape([normalizedFactors,tempStock])
 debug_shape([normalizedFactors, stocks])
 
-# portfolios = regress_factors(stocks, normalizedFactors)
+portfolios = regress_factors(stocks, normalizedFactors)
 # print(portfolios)
 
