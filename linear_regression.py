@@ -50,6 +50,11 @@ def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
     """Takes a factor name (for better printing), a ticker representing a factor (such as a thematic index ticker) and the same kwargs as the constructor"""
     return add_stocks_from_tickers(factors, **kwargs)
 
+def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
+  return df.iloc[:int(ratio*len(df))], df.iloc[:int((1-ratio)*len(df))]
+
+def test_model(model: sm.OLS, test_df: pd.DataFrame):
+  pass
 
 def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     """Takes a list of factors that you want to regress on and will print a summary of a multiple regression on those factors with the objects stock
@@ -59,11 +64,13 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     SIGNIF_LEVEL = 0.05
     R2THRESHOLD = 0.65
 
+    train_df, test_df = split_data(factors_df)
+
     portfolios = dict()
     for stock in stocks_df:
         single_stock_df = stocks_df[stock]
         pvals_under_sig = False
-        temp_factor_df: pd.DataFrame = factors_df
+        temp_factor_df: pd.DataFrame = train_df
     
         while(not(pvals_under_sig) and (len(temp_factor_df.columns)>0)):
 
@@ -84,7 +91,8 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
                 pvals_under_sig = True
 
         if(results.rsquared_adj >= R2THRESHOLD):
-            print(results.summary())
+          test_model(model, test_df)
+          print(results.summary())
         
         # for factor_pval in factor_pvals:
         #     factor, pvalue = factor_pval
@@ -167,7 +175,7 @@ kwargs = {'interval': '1mo'}
 
 #temp stock data frame so we can join our factor data with the stock data efficiently. This data frame is not processed.
 tempStock = add_stocks_from_tickers(['MSFT'])
-stocks_to_analyze = get_n_random_stocks(45)
+stocks_to_analyze = get_n_random_stocks(3)
 
 stocks = add_stocks_from_tickers(stocks_to_analyze)
 # stocks = add_stocks_from_tickers(['MSFT'])
