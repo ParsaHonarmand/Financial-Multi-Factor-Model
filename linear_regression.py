@@ -53,8 +53,15 @@ def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
 def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
   return df.iloc[:int(ratio*len(df))], df.iloc[:int((1-ratio)*len(df))]
 
-def test_model(model: sm.OLS, test_df: pd.DataFrame):
-  pass
+def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df):
+    print(factor_test_df)
+    for index, row in factor_test_df.iterrows():
+        factor_arr = row.values
+        print(factor_arr)
+        prediction = model.predict(factor_arr)
+        print(prediction)
+        exit()
+      
 
 def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     """Takes a list of factors that you want to regress on and will print a summary of a multiple regression on those factors with the objects stock
@@ -64,13 +71,18 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
     SIGNIF_LEVEL = 0.05
     R2THRESHOLD = 0.65
 
-    train_df, test_df = split_data(factors_df)
+    factors_df.drop('MSFT', axis=1, inplace=True)
+    factor_train_df, factor_test_df = split_data(factors_df)
+    stock_train_df, stock_test_df = split_data(stocks_df)
+
+    # print(factor_test_df)
+    # print(stocks_df)
 
     portfolios = dict()
     for stock in stocks_df:
-        single_stock_df = stocks_df[stock]
+        single_stock_df = stock_train_df[stock]
         pvals_under_sig = False
-        temp_factor_df: pd.DataFrame = train_df
+        temp_factor_df: pd.DataFrame = factor_train_df
     
         while(not(pvals_under_sig) and (len(temp_factor_df.columns)>0)):
 
@@ -85,23 +97,17 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame):
                 factor, pvalue = factor_pval
                 if pvalue > SIGNIF_LEVEL:
                     all_pvals_under = False
-                    temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
+                    temp_factor_df.drop(columns=factor, axis = 1, inplace=True)
 
             if(all_pvals_under):
                 pvals_under_sig = True
 
         if(results.rsquared_adj >= R2THRESHOLD):
-          test_model(model, test_df)
-          print(results.summary())
+            to_remove = [col for col in factor_test_df.columns if col not in temp_factor_df.columns]
+            factor_test_df.drop(to_remove, axis=1, inplace=True)
+            test_model(model, factor_test_df, stock_test_df)
+            print(results.summary())
         
-        # for factor_pval in factor_pvals:
-        #     factor, pvalue = factor_pval
-        #     if pvalue < SIGNIF_LEVEL:
-        #         if (portfolios.get(str(factor))) is None:
-        #             portfolios[str(factor)] = set([ticker])
-        #         else:
-        #             portfolios[str(factor)].add(ticker)
-
     return portfolios
 
 
@@ -147,8 +153,7 @@ def save_sp500_tickers():
         ticker = row.findAll('td')[0].text
         ticker = ticker.replace('\n', '')
         tickers.append(ticker)    
-
-    
+  
     return tickers
 
 def get_n_random_stocks(num):
