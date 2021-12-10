@@ -31,8 +31,6 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
         except KeyError:
             print(f'Could not add {ticker}')
 
-    joint_stock_df.to_csv('price_downloads.csv')
-
     return joint_stock_df.apply(lambda ticker: get_returns(ticker))
 
 
