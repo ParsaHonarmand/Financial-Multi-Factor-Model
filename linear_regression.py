@@ -48,7 +48,7 @@ def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
 def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
   return df.iloc[:int(ratio*len(df))], df.iloc[int(ratio*len(df)):]
 
-def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, debug = False):
+def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False):
     prediction: pd.Series = model.predict(factor_test_df)
 
     prediction_and_actual = prediction.to_frame('Prediction').join(stock_test_df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
@@ -60,8 +60,9 @@ def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Se
     mse = prediction_and_actual['squared_error'].sum() / prediction.size
     print(f"Prediction Mean Squared Error: {mse}")
 
-    prediction_and_actual.plot()
-    plt.show()
+    if plot:
+        prediction_and_actual.plot()
+        plt.show()
 
 
 def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_level = 0.05, r2_threshold = 0.7):
