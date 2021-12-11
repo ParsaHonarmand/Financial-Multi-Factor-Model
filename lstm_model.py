@@ -1,15 +1,13 @@
 import math
 
 import keras.layers
-import tensorflow
-
-import numpy as np
+import matplotlib.pyplot as plot
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras.models import Sequential, Model
-from tensorflow.keras.layers import Input, Dense, LSTM
+from tensorflow.keras import layers
+
 import linear_regression as lr
-import matplotlib.pyplot as plot
+import numpy as np
 
 plot.style.use('fivethirtyeight')
 
@@ -55,19 +53,48 @@ training_input_variables = []
 training_expected_targets = []
 for i in range(historical_range, len(train_stock_data) - prediction_range + 1):
     training_input_variables.append(train_factor_data[(i - historical_range):i])
-    training_expected_targets.append(train_stock_data[i+prediction_range-1:i+prediction_range, 0])
+    training_expected_targets.append(train_stock_data[i + prediction_range - 1][0])
 
 training_input_variables = np.array(training_input_variables)
 training_expected_targets = np.array(training_expected_targets)
+# (1102, 200, 11)
+# (1102,)
+training_input_variables = training_input_variables.reshape(-1, historical_range * len(factor_names))
+# (1102, 2200)
 
-# Creating the sequential model and run it
-model = keras.Sequential([
-    keras.layers.Dense(11, input_dim=11, activation=keras.activations.relu, use_bias=True),
-    keras.layers.Dense(1, activation=keras.activations.relu, use_bias=True),
-])
-model.compile(optimizer='adam', loss='mean_squared_error')
-model.fit(training_input_variables, training_expected_targets, batch_size=16, epochs=100)
+# Create the functional model
+inputs = keras.Input(shape=(training_input_variables.shape[1],))
+dense = layers.Dense(training_input_variables.shape[1], activation="relu")
+x = dense(inputs)
+x = layers.Dense(200, activation="relu")(x)
+outputs = layers.Dense(prediction_range)(x)
+model = keras.Model(inputs=inputs, outputs=outputs)
 
+model.compile(
+    loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    optimizer=keras.optimizers.RMSprop(),
+    metrics=["accuracy"],
+)
 
+model.fit(training_input_variables, training_expected_targets, batch_size=training_input_variables.shape[1], epochs=2,
+          validation_split=0.2)
 
+# Create test data set
+test_stock_data = scaled_stock_data[len(train_stock_data):, :]
+test_factor_data = scaled_factor_data[len(train_factor_data):, :]
 
+test_stock_data = np.array(test_stock_data)
+test_factor_data = np.array(test_factor_data)
+
+test_input_variables = []
+test_expected_targets = []
+for i in range(historical_range, len(test_stock_data) - prediction_range + 1):
+    test_input_variables.append(test_factor_data[(i - historical_range):i])
+    test_expected_targets.append(test_stock_data[i + prediction_range - 1:i + prediction_range, 0])
+
+test_input_variables = np.array(test_input_variables)
+test_expected_targets = np.array(test_expected_targets)
+test_input_variables = test_input_variables.reshape(-1, historical_range * len(factor_names))
+test_scores = model.evaluate(test_input_variables, test_expected_targets, verbose=2)
+
+print(test_scores)
