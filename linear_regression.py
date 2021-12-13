@@ -17,9 +17,9 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
     """
 
     joint_stock_df = pd.DataFrame()
-    date = datetime.datetime(2014,12,3,0,0,0)
+    date = datetime.datetime(2014,1,3,0,0,0)
     for ticker in tickers: 
-        close_prices = yf.download(ticker, start="2014-12-03", end="2021-12-01", interval=kwargs.get(
+        close_prices = yf.download(ticker, start="2014-01-03", end="2021-12-01", interval=kwargs.get(
             'interval', "1d"))[['Close']].dropna()
         try:
             print(close_prices.loc[date])
@@ -48,7 +48,7 @@ def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
 def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
   return df.iloc[:int(ratio*len(df))], df.iloc[int(ratio*len(df)):]
 
-def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False):
+def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> tuple[pd.DataFrame, float]:
     prediction: pd.Series = model.predict(factor_test_df)
 
     prediction_and_actual = prediction.to_frame('Prediction').join(stock_test_df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
@@ -58,14 +58,40 @@ def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Se
     if debug: print(prediction_and_actual)
 
     mse = prediction_and_actual['squared_error'].sum() / prediction.size
-    print(f"Prediction Mean Squared Error: {mse}")
+    
 
     if plot:
         prediction_and_actual.plot()
         plt.show()
+    
+    return (prediction_and_actual, mse);
+
+def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> tuple[pd.DataFrame, float] :
+    ''''We can check a stock's alpha response change by just changing the test alpha passed in
+    '''''
+    reg_results = model.fit_regularized(method = 'elastic_net', alpha = test_alpha, L1_wt=0)
+    prediction_df, new_mse = test_model(reg_results, factor_test_df, stock_test_df)
+    print(f"Final alpha value used: {test_alpha}")
+
+    return (prediction_df, new_mse)
+
+def add_to_output_files(ticker, df_to_append: pd.DataFrame, regularization_check = False):
+    
+    if regularization_check:
+        filename = 'outputReg3.xlsx'
+    else:
+        filename = 'output3.xlsx'
+    
+    if(os.path.isfile(filename)):
+        with pd.ExcelWriter(filename, mode = 'a') as writer:
+            df_to_append.to_excel(writer, sheet_name=f'{ticker}')
+    else:
+        df_to_append.to_excel(filename, sheet_name=f'{ticker}')
+
+    
 
 
-def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_level = 0.05, r2_threshold = 0.7):
+def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_level = 0.05, r2_threshold = 0.65):
     """Takes a list of factors that you want to regress on and will print a summary of a multiple regression on those factors with the objects stock
 
     Can pass in self.factor_names to regress on all factors
@@ -87,21 +113,27 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
 
             factor_pvals = zip(results.pvalues.index, results.pvalues.values)
             all_pvals_under = True
+            
             for factor_pval in factor_pvals:
                 factor, pvalue = factor_pval
                 if pvalue > signif_level:
                     all_pvals_under = False
-                    temp_factor_df.drop(columns=factor, axis = 1, inplace=True)
+                    temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
 
             if results.rsquared_adj >= r2_threshold and all_pvals_under:
                 if (portfolios.get(str(factor))) is None:
                     portfolios[str(factor)] = set([ticker])
                 else:
                     portfolios[str(factor)].add(ticker)
-
+ 
                 to_remove = [col for col in factor_test_df.columns if col not in temp_factor_df.columns]
-                factor_test_df.drop(to_remove, axis=1, inplace=True)
-                test_model(results, factor_test_df, stock_test_df)
+                factor_test_temp_df = factor_test_df.drop(to_remove, axis=1)
+                prediction_df, mse = test_model(results, factor_test_temp_df, stock_test_df)
+                reg_prediction_df, reg_mse = test_regularized_model(model, 0.01, stock_test_df, factor_test_temp_df)
+                print(f"Prediction Mean Squared Error: {mse}")  
+                print(f"Regularized Prediction Mean Squared Error: {reg_mse}")
+                add_to_output_files(ticker, prediction_df)
+                add_to_output_files(ticker, reg_prediction_df, regularization_check= True)
                 print(results.summary())
 
             if all_pvals_under:
@@ -171,7 +203,7 @@ def get_n_random_stocks(num):
     return stocks_to_analyze
     
 
-stocks_to_analyze = get_n_random_stocks(3)
+stocks_to_analyze = get_n_random_stocks(400)
 
 stocks = add_stocks_from_tickers(stocks_to_analyze)
 factors = add_factors_from_csv('factorDirectory/')
