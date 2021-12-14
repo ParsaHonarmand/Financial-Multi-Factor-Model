@@ -49,6 +49,8 @@ def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFram
   return df.iloc[:int(ratio*len(df))], df.iloc[int(ratio*len(df)):]
 
 def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> tuple[pd.DataFrame, float]:
+    """ Function calculates the series of predictions with the calculated model, then joins the series to the stock's dataframe and calculates the squared error
+    """
     prediction: pd.Series = model.predict(factor_test_df)
 
     prediction_and_actual = prediction.to_frame('Prediction').join(stock_test_df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
@@ -67,8 +69,10 @@ def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Se
     return (prediction_and_actual, mse);
 
 def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> tuple[pd.DataFrame, float] :
-    ''''We can check a stock's alpha response change by just changing the test alpha passed in
-    '''''
+    """We can check a stock's alpha response change by just changing the test alpha passed in.
+    Function makes a regularized model with a ridge method (minimization of summation is squared errors)
+    """ 
+
     reg_results = model.fit_regularized(method = 'elastic_net', alpha = test_alpha, L1_wt=0)
     prediction_df, new_mse = test_model(reg_results, factor_test_df, stock_test_df)
     print(f"Final alpha value used: {test_alpha}")
@@ -76,11 +80,14 @@ def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFram
     return (prediction_df, new_mse)
 
 def add_to_output_files(ticker, df_to_append: pd.DataFrame, regularization_check = False):
+    """"Takes in the prediction data frame to append as a tab to an excel file. If the file does not exist, it creates it. 
+    Creates different files for regularized linear regression results and basic regression results
+    """
     
     if regularization_check:
-        filename = 'outputReg3.xlsx'
+        filename = 'outputReg4.xlsx'
     else:
-        filename = 'output3.xlsx'
+        filename = 'output4.xlsx'
     
     if(os.path.isfile(filename)):
         with pd.ExcelWriter(filename, mode = 'a') as writer:
@@ -91,12 +98,12 @@ def add_to_output_files(ticker, df_to_append: pd.DataFrame, regularization_check
     
 
 
-def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_level = 0.05, r2_threshold = 0.65):
+def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_level = 0.05, r2_threshold = 0.5):
     """Takes a list of factors that you want to regress on and will print a summary of a multiple regression on those factors with the objects stock
 
     Can pass in self.factor_names to regress on all factors
     """
-
+    factors_df = sm.add_constant(factors_df)
     factor_train_df, factor_test_df = split_data(factors_df)
 
     portfolios = dict()
@@ -116,7 +123,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
             
             for factor_pval in factor_pvals:
                 factor, pvalue = factor_pval
-                if pvalue > signif_level:
+                if pvalue > signif_level and factor != 'const':
                     all_pvals_under = False
                     temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
 
@@ -133,7 +140,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
                 print(f"Prediction Mean Squared Error: {mse}")  
                 print(f"Regularized Prediction Mean Squared Error: {reg_mse}")
                 add_to_output_files(ticker, prediction_df)
-                add_to_output_files(ticker, reg_prediction_df, regularization_check= True)
+                # add_to_output_files(ticker, reg_prediction_df, regularization_check= True)
                 print(results.summary())
 
             if all_pvals_under:
@@ -203,9 +210,9 @@ def get_n_random_stocks(num):
     return stocks_to_analyze
     
 
-stocks_to_analyze = get_n_random_stocks(400)
+stocks_to_analyze = get_n_random_stocks(10)
 
-stocks = add_stocks_from_tickers(stocks_to_analyze)
+stocks = add_stocks_from_tickers(['RJF'])
 factors = add_factors_from_csv('factorDirectory/')
 
 normalizedFactors = normalize_factor_dates(factors)
