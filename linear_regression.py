@@ -15,7 +15,7 @@ PRICE_DOWNLOADS_CSV = 'price_downloads.csv'
 PRICE_FACTOR_CSV = 'price_factor.csv'
 
 
-def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
+def add_stocks_from_tickers(tickers: "list[str]", **kwargs: "dict[str, str]") -> pd.DataFrame:
     """ Takes a stock ticker string, calculates the returns, and inserts them into a data frame
 
     #fetching-data-for-multiple-tickers to see how they work.
@@ -48,14 +48,14 @@ def get_returns(close_prices: pd.DataFrame) -> pd.DataFrame:
     return offset_returns.shift(1).dropna()
 
 
-def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
+def add_factors_from_tickers(factors: "list[str]", **kwargs: "dict[str, str]"):
     """Takes a factor name (for better printing), a ticker representing a factor (such as a thematic index ticker) and the same kwargs as the constructor"""
     return add_stocks_from_tickers(factors, **kwargs)
 
-def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
+def split_data(df: pd.DataFrame, ratio = 0.7) -> "tuple[pd.DataFrame, pd.DataFrame]":
   return df.iloc[:int(ratio*len(df))], df.iloc[int(ratio*len(df)):]
 
-def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> tuple[pd.DataFrame, float]:
+def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> "tuple[pd.DataFrame, float]":
     """ Function calculates the series of predictions with the calculated model, then joins the series to the stock's dataframe and calculates the squared error
     """
     prediction: pd.Series = model.predict(factor_test_df)
@@ -73,9 +73,9 @@ def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Se
         prediction_and_actual.plot()
         plt.show()
     
-    return (prediction_and_actual, mse);
+    return (prediction_and_actual, mse)
 
-def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> tuple[pd.DataFrame, float] :
+def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> "tuple[pd.DataFrame, float]":
     """We can check a stock's alpha response change by just changing the test alpha passed in.
     Function makes a regularized model with a ridge method (minimization of summation is squared errors)
     """ 
@@ -155,7 +155,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
 
     return portfolios
 
-def debug_shape(dfs: list[pd.DataFrame]):
+def debug_shape(dfs: "list[pd.DataFrame]"):
     for df in dfs:
         print(df.shape)
 
