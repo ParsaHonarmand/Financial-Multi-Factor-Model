@@ -9,6 +9,12 @@ import requests
 import random
 import datetime
 
+FACTOR_DIRECTORY = 'factorDirectory/'
+
+PRICE_DOWNLOADS_CSV = 'price_downloads.csv'
+PRICE_FACTOR_CSV = 'price_factor.csv'
+
+
 def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
     """ Takes a stock ticker string, calculates the returns, and inserts them into a data frame
 
@@ -23,11 +29,12 @@ def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.
             'interval', "1d"))[['Close']].dropna()
         try:
             print(close_prices.loc[date])
-            close_prices = close_prices.rename(columns={'Close':f'{ticker}'})
+            close_prices = close_prices.rename(columns={'Close': f'{ticker}'})
             if joint_stock_df.empty:
                 joint_stock_df = close_prices
             else:
-                joint_stock_df =joint_stock_df.join(close_prices,on='Date', how='left', lsuffix='_left', rsuffix='_right')
+                joint_stock_df = joint_stock_df.join(close_prices, on='Date', how='left', lsuffix='_left',
+                                                     rsuffix='_right')
         except KeyError:
             print(f'Could not add {ticker}')
 
@@ -125,7 +132,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
                 factor, pvalue = factor_pval
                 if pvalue > signif_level and factor != 'const':
                     all_pvals_under = False
-                    temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
+                    temp_factor_df = temp_factor_df.drop(columns=factor, axis=1)
 
             if results.rsquared_adj >= r2_threshold and all_pvals_under:
                 if (portfolios.get(str(factor))) is None:
@@ -170,6 +177,8 @@ def add_factors_from_csv(directory) -> pd.DataFrame:
         df = factorlist[i]
         combined_factors = combined_factors.join(df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
 
+    combined_factors.to_csv(PRICE_FACTOR_CSV)
+
     return combined_factors.apply(lambda factor: get_returns(factor))
 
 
@@ -194,14 +203,14 @@ def save_sp500_tickers():
 
 def get_n_random_stocks(num):
     randlist = []
-    numStocksToAnalyze =num
+    numStocksToAnalyze = num
     i = 0
     while (i < numStocksToAnalyze):
-        r = random.randint(0,499)
+        r = random.randint(0, 499)
         if r not in randlist:
-            randlist.append(r) 
-            i+=1
-    
+            randlist.append(r)
+            i += 1
+
     stock_list = save_sp500_tickers()
     stocks_to_analyze = []
     for i in randlist:
