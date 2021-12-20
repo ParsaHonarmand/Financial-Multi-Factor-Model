@@ -9,13 +9,7 @@ import requests
 import random
 import datetime
 
-FACTOR_DIRECTORY = 'factorDirectory/'
-
-PRICE_DOWNLOADS_CSV = 'price_downloads.csv'
-PRICE_FACTOR_CSV = 'price_factor.csv'
-
-
-def add_stocks_from_tickers(tickers: "list[str]", **kwargs: "dict[str, str]") -> pd.DataFrame:
+def add_stocks_from_tickers(tickers: list[str], **kwargs: dict[str, str]) -> pd.DataFrame:
     """ Takes a stock ticker string, calculates the returns, and inserts them into a data frame
 
     #fetching-data-for-multiple-tickers to see how they work.
@@ -29,12 +23,11 @@ def add_stocks_from_tickers(tickers: "list[str]", **kwargs: "dict[str, str]") ->
             'interval', "1d"))[['Close']].dropna()
         try:
             print(close_prices.loc[date])
-            close_prices = close_prices.rename(columns={'Close': f'{ticker}'})
+            close_prices = close_prices.rename(columns={'Close':f'{ticker}'})
             if joint_stock_df.empty:
                 joint_stock_df = close_prices
             else:
-                joint_stock_df = joint_stock_df.join(close_prices, on='Date', how='left', lsuffix='_left',
-                                                     rsuffix='_right')
+                joint_stock_df =joint_stock_df.join(close_prices,on='Date', how='left', lsuffix='_left', rsuffix='_right')
         except KeyError:
             print(f'Could not add {ticker}')
 
@@ -48,14 +41,14 @@ def get_returns(close_prices: pd.DataFrame) -> pd.DataFrame:
     return offset_returns.shift(1).dropna()
 
 
-def add_factors_from_tickers(factors: "list[str]", **kwargs: "dict[str, str]"):
+def add_factors_from_tickers(factors: list[str], **kwargs: dict[str, str]):
     """Takes a factor name (for better printing), a ticker representing a factor (such as a thematic index ticker) and the same kwargs as the constructor"""
     return add_stocks_from_tickers(factors, **kwargs)
 
-def split_data(df: pd.DataFrame, ratio = 0.7) -> "tuple[pd.DataFrame, pd.DataFrame]":
+def split_data(df: pd.DataFrame, ratio = 0.7) -> tuple[pd.DataFrame, pd.DataFrame]:
   return df.iloc[:int(ratio*len(df))], df.iloc[int(ratio*len(df)):]
 
-def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> "tuple[pd.DataFrame, float]":
+def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Series, plot = False, debug = False) -> tuple[pd.DataFrame, float]:
     """ Function calculates the series of predictions with the calculated model, then joins the series to the stock's dataframe and calculates the squared error
     """
     prediction: pd.Series = model.predict(factor_test_df)
@@ -73,9 +66,9 @@ def test_model(model: sm.OLS, factor_test_df: pd.DataFrame, stock_test_df: pd.Se
         prediction_and_actual.plot()
         plt.show()
     
-    return (prediction_and_actual, mse)
+    return (prediction_and_actual, mse);
 
-def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> "tuple[pd.DataFrame, float]":
+def test_regularized_model(model: sm.OLS, test_alpha, stock_test_df: pd.DataFrame, factor_test_df:pd.DataFrame) -> tuple[pd.DataFrame, float] :
     """We can check a stock's alpha response change by just changing the test alpha passed in.
     Function makes a regularized model with a ridge method (minimization of summation is squared errors)
     """ 
@@ -132,7 +125,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
                 factor, pvalue = factor_pval
                 if pvalue > signif_level and factor != 'const':
                     all_pvals_under = False
-                    temp_factor_df = temp_factor_df.drop(columns=factor, axis=1)
+                    temp_factor_df = temp_factor_df.drop(columns=factor, axis = 1)
 
             if results.rsquared_adj >= r2_threshold and all_pvals_under:
                 if (portfolios.get(str(factor))) is None:
@@ -155,7 +148,7 @@ def regress_factors(stocks_df: pd.DataFrame, factors_df: pd.DataFrame, signif_le
 
     return portfolios
 
-def debug_shape(dfs: "list[pd.DataFrame]"):
+def debug_shape(dfs: list[pd.DataFrame]):
     for df in dfs:
         print(df.shape)
 
@@ -176,8 +169,6 @@ def add_factors_from_csv(directory) -> pd.DataFrame:
     for i in range(1, len(factorlist)):
         df = factorlist[i]
         combined_factors = combined_factors.join(df, on='Date', how='left', lsuffix='_left', rsuffix='_right')
-
-    combined_factors.to_csv(PRICE_FACTOR_CSV)
 
     return combined_factors.apply(lambda factor: get_returns(factor))
 
@@ -203,14 +194,14 @@ def save_sp500_tickers():
 
 def get_n_random_stocks(num):
     randlist = []
-    numStocksToAnalyze = num
+    numStocksToAnalyze =num
     i = 0
     while (i < numStocksToAnalyze):
-        r = random.randint(0, 499)
+        r = random.randint(0,499)
         if r not in randlist:
-            randlist.append(r)
-            i += 1
-
+            randlist.append(r) 
+            i+=1
+    
     stock_list = save_sp500_tickers()
     stocks_to_analyze = []
     for i in randlist:
@@ -219,17 +210,18 @@ def get_n_random_stocks(num):
     return stocks_to_analyze
     
 
-stocks_to_analyze = get_n_random_stocks(10)
+if __name__ == '__main__':
+    stocks_to_analyze = get_n_random_stocks(10)
 
-stocks = add_stocks_from_tickers(['RJF'])
-factors = add_factors_from_csv('factorDirectory/')
+    stocks = add_stocks_from_tickers(['RJF'])
+    factors = add_factors_from_csv('factorDirectory/')
 
-normalizedFactors = normalize_factor_dates(factors)
+    normalizedFactors = normalize_factor_dates(factors)
 
-for column in normalizedFactors.columns: 
-    if column == 'Close':
-        normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
+    for column in normalizedFactors.columns: 
+        if column == 'Close':
+            normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
 
-portfolios = regress_factors(stocks, normalizedFactors)
-print(portfolios)
+    portfolios = regress_factors(stocks, normalizedFactors)
+    print(portfolios)
 
