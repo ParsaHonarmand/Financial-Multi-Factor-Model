@@ -208,6 +208,8 @@ def get_n_random_stocks(num):
 
 factors = add_factors_from_csv('/FileStore/tables/factorDirectory/')
 
+normalizedFactors = normalize_factor_dates(factors)
+
 for column in normalizedFactors.columns: 
     if column == 'Close':
         normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
