@@ -46,7 +46,7 @@ def split_data(stock, batch_size):
     x_test = data[train_set_size:,:-1]
     y_test = data[train_set_size:,-1,:]
     
-    return [x_train, x_test, y_train, y_test]
+    return (train_set_size, [x_train, x_test, y_train, y_test])
 
 def convert_to_tensor(np_arr):
     return torch.from_numpy(np_arr).type(torch.Tensor)
@@ -77,7 +77,9 @@ for ticker in tickers:
     scaler = MinMaxScaler(feature_range=(-1, 1))
     normalized_prices = scaler.fit_transform(prices['Close'].values.reshape(-1,1))
 
-    data = split_data(normalized_prices, batch_size=25)
+    test_start_date, data = split_data(normalized_prices, batch_size=25)
+
+    starting_date = str(prices.iloc[test_start_date:].index[0])[:10]
 
     x_train, x_test, y_train_gru, y_test_gru = [*map(convert_to_tensor, data)]
 
@@ -106,25 +108,25 @@ for ticker in tickers:
     denormalized_test = denormalize(y_test_gru, 'Actual')
 
 
+    print('\n################## STATISTICS ##################')
     score = math.sqrt(mean_squared_error(denormalized_pred, denormalized_test))
     print(f'Root Mean Squared Error (RMSE) of {ticker} Neural Net: ${score:.2f}')
 
     price_on_last_day_df: pd.Series = prices.loc[period['end'] - datetime.timedelta(days=1)]
     price_on_last_day = price_on_last_day_df.values[0]
 
-    print(f'{ticker} price as of {period["end"]}: {price_on_last_day:.2f}')
-    print(f'RMSE relative to price as of {period["end"]}: {score:.2f}/{price_on_last_day:.2f} = {score/price_on_last_day*100:.2f}%')
+    print(f'\n{ticker} price as of {starting_date}: ${price_on_last_day:.2f}')
+    print(f'RMSE relative to price as of {str(period["end"])[:10]}: {score:.2f}/{price_on_last_day:.2f} = {score/price_on_last_day*100:.2f}%\n')
 
     plt.plot(denormalized_pred, label="Predicted Price")
     plt.plot(denormalized_test, label="Actual Price")
     plt.ylabel(f'Price of {ticker}')
-    plt.xlabel(f'Days since {period["start"]}')
+    plt.xlabel(f'Days since {starting_date}')
     plt.title(ticker)
     plt.legend()
     plt.savefig(f'./NN_results/{ticker}_GRU_Pred.png')
 
     results_to_csv(denormalized_pred, denormalized_test, score)
-
 
     # Clean Up
     plt.clf()
