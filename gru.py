@@ -65,11 +65,11 @@ def results_to_csv(pred, actual, rmse):
         rmse.to_excel(writer, sheet_name=f'{ticker} RMSE')
 
 
-tickers = ['F', 'AMZN', 'COST']
+tickers = ['F', 'AMZN', 'COST', 'TFC']
 
 period = {
     'start': datetime.datetime(2014, 1, 3),
-    'end': datetime.datetime(2021, 1, 1)
+    'end': datetime.datetime(2021, 12, 1)
 }
 
 for ticker in tickers:
