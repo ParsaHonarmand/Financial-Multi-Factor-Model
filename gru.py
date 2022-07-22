@@ -11,7 +11,6 @@ import time
 import math
 
 # This code was taken and partially modified from https://www.kaggle.com/rodsaldanha/stock-prediction-pytorch
-# It helped us with setting up the Gated Recurrent Unit and splitting the training data, since this was not taught in lectures
 
 class GRU(nn.Module):
     def __init__(self, input_dim, hidden_dim, num_layers, output_dim):
