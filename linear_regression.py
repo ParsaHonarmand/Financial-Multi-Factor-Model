@@ -205,14 +205,22 @@ def get_n_random_stocks(num):
     
     return stocks_to_analyze
 
+<<<<<<< HEAD
 
 factors = add_factors_from_csv('/FileStore/tables/factorDirectory/')
+=======
+if __name__ == '__main__':
+    stocks_to_analyze = get_n_random_stocks(10)
 
-normalizedFactors = normalize_factor_dates(factors)
+    stocks = add_stocks_from_tickers(['RJF'])
+    factors = add_factors_from_csv('factorDirectory/')
+>>>>>>> brainbrain
 
-for column in normalizedFactors.columns: 
-    if column == 'Close':
-        normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
+    normalizedFactors = normalize_factor_dates(factors)
+
+    for column in normalizedFactors.columns: 
+        if column == 'Close':
+            normalizedFactors = normalizedFactors.drop(columns=column, axis = 1)
 
 stocks_to_analyze = get_n_random_stocks(300)        
 stocks_to_analyze_rdd = sc.parallelize(stocks_to_analyze)
