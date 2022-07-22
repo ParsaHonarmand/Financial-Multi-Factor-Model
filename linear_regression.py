@@ -205,16 +205,13 @@ def get_n_random_stocks(num):
     
     return stocks_to_analyze
 
-<<<<<<< HEAD
-
 factors = add_factors_from_csv('/FileStore/tables/factorDirectory/')
-=======
+
 if __name__ == '__main__':
     stocks_to_analyze = get_n_random_stocks(10)
 
     stocks = add_stocks_from_tickers(['RJF'])
     factors = add_factors_from_csv('factorDirectory/')
->>>>>>> brainbrain
 
     normalizedFactors = normalize_factor_dates(factors)
 
