@@ -56,13 +56,12 @@ def denormalize(tensor, name):
 
 def results_to_csv(pred, actual, rmse):
     pred_and_actual = pd.concat([pred, actual], axis=1, join='outer')
-    file_name = f'./NN_results/{ticker}_NN_results.xlsx'
+    file_name = f'../neuralNetResults/{ticker}_results.xlsx'
     pred_and_actual.to_excel(file_name, sheet_name=f'{ticker}')
 
-    with pd.ExcelWriter(file_name, mode = 'a') as writer:
+    with pd.ExcelWriter(file_name, mode = 'w') as writer:
         rmse = pd.Series([rmse], name='RMSE')
         rmse.to_excel(writer, sheet_name=f'{ticker} RMSE')
-
 
 tickers = ['F', 'AMZN', 'COST', 'TFC']
 
@@ -123,7 +122,7 @@ for ticker in tickers:
     plt.xlabel(f'Days since {starting_date}')
     plt.title(ticker)
     plt.legend()
-    plt.savefig(f'./NN_results/{ticker}_GRU_Pred.png')
+    plt.savefig(f'../neuralNetResults/{ticker}_GRU_Prediction.png')
 
     results_to_csv(denormalized_pred, denormalized_test, score)
 
