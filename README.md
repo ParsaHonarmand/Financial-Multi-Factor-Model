@@ -1,5 +1,23 @@
 # Financial Analysis in Python
 
+## Instructions
+### To run linear regression:
+  
+  `cd src`
+
+  `python3 linear_regression.py`
+
+Results will be output to terminal
+
+
+### To run machine learning model: 
+
+  `cd src`
+
+  `python3 gru.py`
+
+Results will be in the neuralNetResults directory
+
 ## Overview
 As stock markets and economies have evolved, economists and investors have continuously attempted to improve their stock return prediction models in search of sustainable investment profits. We wanted to investigate the factor investing approach to financial modelling. This approach involves targeting quantifiable firm characteristics or “factors” that help predict stock returns. This is considered a sophisticated investment method used by institutional investors such as pensions and hedge funds. We sampled a large number of stocks in the S&P 500 (S&P), a portfolio of the biggest public companies in the U.S that acts as a proxy for the whole market.
 
